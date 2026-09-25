@@ -3,3 +3,5 @@ target
 */rusty-tags.vi
 history.txt
 fuzz/Cargo.lock
+.vscode/
+.gitignore
