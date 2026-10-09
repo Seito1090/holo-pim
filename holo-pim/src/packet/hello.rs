@@ -150,7 +150,6 @@ mod tests {
     fn holdtime_roundtrip() {
         let original = HelloOption::Holdtime(30);
         let encoded = original.encode();
-        // encoded = [type(2), len(2), value(2)] -> decode expects (type, value) split
         let decoded = HelloOption::decode(
             u16::from_be_bytes([encoded[0], encoded[1]]),
             &encoded[4..],

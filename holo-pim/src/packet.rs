@@ -394,5 +394,6 @@ mod tests {
     }
 }
 
+// I got this at some point, cannot seem to reproduce it ...
 // thread 'packet::tests::join_prune_roundtrip' (1225524) panicked at holo-pim/src/packet.rs:351:49:
 // called `Result::unwrap()` on an `Err` value: InvalidReserved(3)
