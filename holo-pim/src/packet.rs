@@ -15,7 +15,7 @@ mod candidate_rp_advertisement;
 pub use assert::AssertMsg;
 pub use bootstrap::BootstrapMsg;
 pub use candidate_rp_advertisement::CandidateRpAdvertisementMsg;
-pub use hello::HelloMsg;
+pub use hello::{HelloMsg, HelloOption};
 pub use join_prune::{JoinPruneMsg, MulticastGroup};
 pub use register::RegisterMsg;
 pub use register_stop::RegisterStopMsg;

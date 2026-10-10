@@ -1,7 +1,10 @@
 // TODO Review the tests 
 use std::net::{IpAddr, Ipv4Addr};
 use bytes::Bytes;
-use holo_pim::packet::hello::{HelloMsg, HelloOption, UnicastAddress};
+
+use holo_pim::address::UnicastAddress;
+use holo_pim::errors::DecodeError;
+use holo_pim::packet::{HelloMsg, HelloOption};
 
 /* HelloOption */
 
@@ -83,7 +86,7 @@ fn address_list_rejects_mismatched_families() {
     data.extend_from_slice(&v6.encode());
 
     assert!(matches!(
-        HelloOption::decode(option_type::ADDRESSLIST, &data),
+        HelloOption::decode(24, &data),
         Err(DecodeError::MismatchedAddressFamily)
     ));
 }
