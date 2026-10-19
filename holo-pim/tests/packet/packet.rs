@@ -1,3 +1,4 @@
+/* Tests for the common PIM header, message type dispatch, and full-message roundtrips. */
 // TODO:
 //  - IPV6 checks as per rfc 2460
 
@@ -48,66 +49,6 @@ fn truncated_register_message_rejected(){
 }
 
 #[test]
-fn truncated_register_body_rejected(){
-    for length in 0..4 {
-        let data = vec![0u8; length];
-
-        assert!(
-            matches!(RegisterMsg::decode(&data), Err(DecodeError::IncompletePacket)),
-            "unexpected result for truncated Register body length {length}"
-        );
-    }
-}
-
-#[test]
-fn register_decode_rejects_reserved_bits() {
-    assert!(matches!(
-        RegisterMsg::decode(&[0x00, 0x00, 0x00, 0x01]),
-        Err(DecodeError::InvalidReserved(1))
-    ));
-
-    assert!(matches!(
-        RegisterMsg::decode(&[0x00, 0x00, 0x01, 0x00]),
-        Err(DecodeError::InvalidReserved(0x100))
-    ));
-
-    assert!(matches!(
-        RegisterMsg::decode(&[0x00, 0x3f, 0xff, 0xff]),
-        Err(DecodeError::InvalidReserved(0x3f_ff_ff))
-    ));
-}
-
-#[test]
-fn register_with_payload_requires_null_bit_to_be_clear() {
-    let data = [0x40, 0x00, 0x00, 0x00, 0xAA];
-
-    assert!(matches!(
-        RegisterMsg::decode(&data),
-        Err(DecodeError::InvalidRegisterPayload)
-    ));
-}
-
-#[test]
-fn register_without_payload_requires_null_bit_to_be_set() {
-    let data = [0x00, 0x00, 0x00, 0x00];
-
-    assert!(matches!(
-        RegisterMsg::decode(&data),
-        Err(DecodeError::InvalidRegisterPayload)
-    ));
-}
-
-#[test]
-fn null_register_has_no_payload() {
-    let data = [0x40, 0x00, 0x00, 0x00];
-
-    let decoded = RegisterMsg::decode(&data).unwrap();
-
-    assert!(decoded.null_bit);
-    assert!(decoded.packet.is_empty());
-}
-
-#[test]
 fn wrong_version_rejected(){
     assert!(matches!(Message::decode(&[0x11, 0x00, 0x12, 0x12]), Err(DecodeError::InvalidVersion(0x01))))
 }
@@ -137,11 +78,11 @@ fn register_simple_roundtrip(){
     let mut packet_bytes = BytesMut::new();
     packet_bytes.put_u16(42);
     let packet = packet_bytes.freeze();
-    let original = Message::Register(RegisterMsg { border_bit: false, null_bit: true, packet: packet });
+    let original = Message::Register(RegisterMsg { border_bit: false, null_bit: false, packet: packet });
     let encoded = original.encode();
     let decoded = Message::decode(&encoded).unwrap();
 
-    assert!(matches!(decoded, Message::Register(RegisterMsg { border_bit: false, null_bit: true, packet: _packet })));
+    assert!(matches!(decoded, Message::Register(RegisterMsg { border_bit: false, null_bit: false, packet: _packet })));
 }
 
 #[test]
@@ -149,11 +90,11 @@ fn register_padded_roundtrip(){
     let mut packet_bytes = BytesMut::new();
     packet_bytes.put_u8(42);
     let packet = packet_bytes.freeze();
-    let original = Message::Register(RegisterMsg { border_bit: false, null_bit: true, packet: packet });
+    let original = Message::Register(RegisterMsg { border_bit: false, null_bit: false, packet: packet });
     let encoded = original.encode();
     let decoded = Message::decode(&encoded).unwrap();
 
-    assert!(matches!(decoded, Message::Register(RegisterMsg { border_bit: false, null_bit: true, packet: _packet })));
+    assert!(matches!(decoded, Message::Register(RegisterMsg { border_bit: false, null_bit: false, packet: _packet })));
 }
 
 #[test]
