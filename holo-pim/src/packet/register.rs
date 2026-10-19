@@ -35,6 +35,11 @@ impl RegisterMsg {
         let null_bit = (register_header >> 30) != 0;
         let packet = Bytes::copy_from_slice(&data[4..]);
 
+        // If the null bit is set, the packet must be empty. If the null bit is not set, the packet must not be empty.
+        if null_bit != packet.is_empty() {
+            return Err(DecodeError::InvalidRegisterPayload);
+        }
+
         Ok(RegisterMsg { 
             border_bit, 
             null_bit, 

@@ -78,6 +78,36 @@ fn register_decode_rejects_reserved_bits() {
 }
 
 #[test]
+fn register_with_payload_requires_null_bit_to_be_clear() {
+    let data = [0x40, 0x00, 0x00, 0x00, 0xAA];
+
+    assert!(matches!(
+        RegisterMsg::decode(&data),
+        Err(DecodeError::InvalidRegisterPayload)
+    ));
+}
+
+#[test]
+fn register_without_payload_requires_null_bit_to_be_set() {
+    let data = [0x00, 0x00, 0x00, 0x00];
+
+    assert!(matches!(
+        RegisterMsg::decode(&data),
+        Err(DecodeError::InvalidRegisterPayload)
+    ));
+}
+
+#[test]
+fn null_register_has_no_payload() {
+    let data = [0x40, 0x00, 0x00, 0x00];
+
+    let decoded = RegisterMsg::decode(&data).unwrap();
+
+    assert!(decoded.null_bit);
+    assert!(decoded.packet.is_empty());
+}
+
+#[test]
 fn wrong_version_rejected(){
     assert!(matches!(Message::decode(&[0x11, 0x00, 0x12, 0x12]), Err(DecodeError::InvalidVersion(0x01))))
 }
