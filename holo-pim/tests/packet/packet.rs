@@ -33,6 +33,33 @@ fn short_message_rejected(){
 } 
 
 #[test]
+fn truncated_register_message_rejected(){
+    for length in 0..8 {
+        let mut data = vec![0u8; length];
+        if length > 0 {
+            data[0] = 0x21;
+        }
+
+        assert!(
+            matches!(Message::decode(&data), Err(DecodeError::IncompletePacket)),
+            "unexpected result for truncated Register length {length}"
+        );
+    }
+}
+
+#[test]
+fn truncated_register_body_rejected(){
+    for length in 0..4 {
+        let data = vec![0u8; length];
+
+        assert!(
+            matches!(RegisterMsg::decode(&data), Err(DecodeError::IncompletePacket)),
+            "unexpected result for truncated Register body length {length}"
+        );
+    }
+}
+
+#[test]
 fn wrong_version_rejected(){
     assert!(matches!(Message::decode(&[0x11, 0x00, 0x12, 0x12]), Err(DecodeError::InvalidVersion(0x01))))
 }
@@ -44,7 +71,7 @@ fn wrong_type_rejected(){
 
 #[test]
 fn reserved_not_zeroed(){
-    assert!(matches!(Message::decode(&[0x21, 0x12, 0x4c, 0x21]), Err(DecodeError::InvalidReserved(0x12))))
+    assert!(matches!(Message::decode(&[0x20, 0x12, 0x4c, 0x21]), Err(DecodeError::InvalidReserved(0x12))))
 }
 
 /* Roundtrips */

@@ -17,8 +17,12 @@ impl RegisterMsg {
     }
 
     pub fn decode(data: &[u8]) -> Result<Self, DecodeError> {
-        // add checks, reserved 2 should be all 0s and data should contain a multicast data packet, so size is min 4 bytes
-        let header = *&data.first().ok_or(DecodeError::IncompletePacket)?;
+        // Minimum register body lenght is 4 bytes.
+        if data.len() < 4 {
+            return Err(DecodeError::IncompletePacket);
+        }
+
+        let header = data[0];
         let border_bit = (header >> 7) != 0;
         let null_bit = (header >> 6) != 0;
         let packet = Bytes::copy_from_slice(&data[4..]);

@@ -134,6 +134,11 @@ impl Message {
         let raw_type: u8 = data[0] & 0x0F;
         let msg_type: PimType = PimType::try_from(raw_type)?;
 
+        // A Register message has a minimum length of 8 bytes
+        if msg_type == PimType::Register && data.len() < 8 {
+            return Err(DecodeError::IncompletePacket);
+        }
+
         // Reserved, should be 0
         let reserved: u8 = data[1];
         if 0 != reserved {
