@@ -9,7 +9,7 @@ pub enum DecodeError {
     InvalidMessageType(u8),
     InvalidChecksum,
     InvalidEncoding(u8),
-    InvalidReserved(u8),
+    InvalidReserved(u32),
     UnsupportedMessage(PimType),
     InvalidAddressFamily(u8),
     MismatchedAddressFamily,
@@ -17,7 +17,7 @@ pub enum DecodeError {
 
 // ===== impl DecodeError =====
 
-// InvalidReserved(u8), InvaildChecksumk,
+// InvalidReserved(u32), InvaildChecksumk,
 impl std::fmt::Display for DecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -60,6 +60,24 @@ fn truncated_register_body_rejected(){
 }
 
 #[test]
+fn register_decode_rejects_reserved_bits() {
+    assert!(matches!(
+        RegisterMsg::decode(&[0x00, 0x00, 0x00, 0x01]),
+        Err(DecodeError::InvalidReserved(1))
+    ));
+
+    assert!(matches!(
+        RegisterMsg::decode(&[0x00, 0x00, 0x01, 0x00]),
+        Err(DecodeError::InvalidReserved(0x100))
+    ));
+
+    assert!(matches!(
+        RegisterMsg::decode(&[0x00, 0x3f, 0xff, 0xff]),
+        Err(DecodeError::InvalidReserved(0x3f_ff_ff))
+    ));
+}
+
+#[test]
 fn wrong_version_rejected(){
     assert!(matches!(Message::decode(&[0x11, 0x00, 0x12, 0x12]), Err(DecodeError::InvalidVersion(0x01))))
 }

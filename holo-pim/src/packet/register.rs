@@ -22,9 +22,17 @@ impl RegisterMsg {
             return Err(DecodeError::IncompletePacket);
         }
 
-        let header = data[0];
-        let border_bit = (header >> 7) != 0;
-        let null_bit = (header >> 6) != 0;
+        let register_header = u32::from_be_bytes(data[..4].try_into().unwrap());
+
+        // Check reserved bits are zeroed
+        if register_header & 0x3FFF_FFFF != 0 { 
+            return Err(DecodeError::InvalidReserved(
+                register_header & 0x3FFF_FFFF,
+            ));
+        }
+
+        let border_bit = (register_header >> 31) != 0;
+        let null_bit = (register_header >> 30) != 0;
         let packet = Bytes::copy_from_slice(&data[4..]);
 
         Ok(RegisterMsg { 

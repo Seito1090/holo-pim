@@ -142,7 +142,7 @@ impl Message {
         // Reserved, should be 0
         let reserved: u8 = data[1];
         if 0 != reserved {
-            return Err(DecodeError::InvalidReserved(reserved))
+            return Err(DecodeError::InvalidReserved(reserved as u32));
         }
     
         // Checksum 
