@@ -13,7 +13,7 @@ pub enum DecodeError {
     UnsupportedMessage(PimType),
     InvalidAddressFamily(u8),
     MismatchedAddressFamily,
-    InvalidRegisterPayload,
+    //InvalidRegisterPayload,
 }
 
 // ===== impl DecodeError =====
@@ -49,12 +49,12 @@ impl std::fmt::Display for DecodeError {
             DecodeError::MismatchedAddressFamily => {
                 write!(f, "Mismatched address families found.")
             }
-            DecodeError::InvalidRegisterPayload => {
+            /*DecodeError::InvalidRegisterPayload => {
                 write!(
                     f,
                     "Invalid Register payload: Null-Registers must not contain an encapsulated packet"
                 )
-            }
+            }*/
         }
     }
 }
