@@ -2,14 +2,12 @@
 use bytes::{BufMut, BytesMut};
 use crate::checksum;
 use crate::errors::DecodeError;
-use std::net::Ipv4Addr;
 
 /* Constants */
 pub const PIM_VERSION: u8 = 2;
 pub const PIM_HEADER_LEN: usize = 4;
 pub const PIM_VERSION_SHIFT: u8 = 4;
 pub const PIM_TYPE_MASK: u8 = 0x0f;
-pub const ALL_PIM_ROUTERS_V4: Ipv4Addr = Ipv4Addr::new(224, 0, 0, 13);
 
 // Different message types
 mod assert;
@@ -90,6 +88,13 @@ pub enum Message {
     CandidateRpAdvertisement(CandidateRpAdvertisementMsg),  
 }
 
+// PIM packet header format
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |PIM Ver| Type  | Reserved      | Checksum                      |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
 impl Message {
     pub fn encode(&self) -> BytesMut {
         // Determine the type of message and encode the body
@@ -108,7 +113,7 @@ impl Message {
         // --- Common part of header ---
         buf.put_u8((PIM_VERSION << PIM_VERSION_SHIFT) | (pim_type as u8)); // Version and type
         buf.put_u8(0); // Reserved
-        buf.put_u16(0); // Temporary checksum value        
+        buf.put_u16(0); // Temporary checksum value   
         // --- End of common part ---
 
         buf.extend_from_slice(&body); // Body of the message 
