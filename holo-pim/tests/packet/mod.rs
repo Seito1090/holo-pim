@@ -3,3 +3,4 @@ mod checksum;
 mod hello;
 mod packet;
 mod state;
+mod register;

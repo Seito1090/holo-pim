@@ -28,7 +28,7 @@ impl JoinPruneMsg {
 
         // Reserved check
         if 0 != (num_groups_bytes & 0xFF00){
-            return Err(DecodeError::InvalidReserved((num_groups_bytes >> 8) as u8))
+            return Err(DecodeError::InvalidReserved((num_groups_bytes >> 8) as u32))
         }
 
         let num_groups = num_groups_bytes as u8;

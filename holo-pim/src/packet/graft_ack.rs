@@ -1,0 +1,1 @@
+/* This message type is ignored for now because its used in PIM-DM only */

@@ -1,4 +1,4 @@
-// TODO Review the tests 
+/*Tests for Hello messages and their option encodings.*/
 use std::net::{IpAddr, Ipv4Addr};
 use bytes::Bytes;
 

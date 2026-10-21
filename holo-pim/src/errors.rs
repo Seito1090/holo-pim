@@ -9,15 +9,16 @@ pub enum DecodeError {
     InvalidMessageType(u8),
     InvalidChecksum,
     InvalidEncoding(u8),
-    InvalidReserved(u8),
+    InvalidReserved(u32),
     UnsupportedMessage(PimType),
     InvalidAddressFamily(u8),
     MismatchedAddressFamily,
+    //InvalidRegisterPayload,
 }
 
 // ===== impl DecodeError =====
 
-// InvalidReserved(u8), InvaildChecksumk,
+// InvalidReserved(u32), InvaildChecksumk,
 impl std::fmt::Display for DecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -48,6 +49,12 @@ impl std::fmt::Display for DecodeError {
             DecodeError::MismatchedAddressFamily => {
                 write!(f, "Mismatched address families found.")
             }
+            /*DecodeError::InvalidRegisterPayload => {
+                write!(
+                    f,
+                    "Invalid Register payload: Null-Registers must not contain an encapsulated packet"
+                )
+            }*/
         }
     }
 }

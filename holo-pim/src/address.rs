@@ -81,7 +81,7 @@ impl GroupAddress {
         }
         let reserved = *data.get(2).ok_or(DecodeError::IncompletePacket)?;
         if (reserved & 0x7E) != 0x00{
-            return Err(DecodeError::InvalidReserved(reserved));
+            return Err(DecodeError::InvalidReserved(reserved as u32));
         }
         let b_bit: bool = (reserved & 0x80) != 0x00;
         let z_bit: bool = (reserved & 0x01) != 0x00; 
@@ -131,7 +131,7 @@ impl SourceAddress {
         }
         let reserved = *data.get(2).ok_or(DecodeError::IncompletePacket)?; 
         if (reserved & 0xF8) != 0x00{
-            return Err(DecodeError::InvalidReserved(reserved));
+            return Err(DecodeError::InvalidReserved(reserved as u32));
         }
         let s_bit: bool = (reserved & 0x04) != 0x00;
         let w_bit: bool = (reserved & 0x02) != 0x00;

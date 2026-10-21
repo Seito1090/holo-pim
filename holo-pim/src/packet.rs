@@ -1,7 +1,13 @@
-// This manages the encoding and decoding of PIM packets as described in section 4.9 of RFC 7761
+/* This manages the encoding and decoding of PIM packets as described in section 4.9 of RFC 7761 */
 use bytes::{BufMut, BytesMut};
 use crate::checksum;
-use crate::errors::DecodeError; 
+use crate::errors::DecodeError;
+
+/* Constants */
+pub const PIM_VERSION: u8 = 2;
+pub const PIM_HEADER_LEN: usize = 4;
+pub const PIM_VERSION_SHIFT: u8 = 4;
+pub const PIM_TYPE_MASK: u8 = 0x0f;
 
 // Different message types
 mod assert;
@@ -70,7 +76,6 @@ impl std::fmt::Display for PimType {
     }
 }
 
-
 pub enum Message {
     Hello(HelloMsg),
     Register(RegisterMsg),
@@ -83,8 +88,16 @@ pub enum Message {
     CandidateRpAdvertisement(CandidateRpAdvertisementMsg),  
 }
 
+// PIM packet header format
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |PIM Ver| Type  | Reserved      | Checksum                      |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
 impl Message {
     pub fn encode(&self) -> BytesMut {
+        // Determine the type of message and encode the body
         let (pim_type, body) = match self {
             Message::Hello(m)                    => (PimType::Hello, m.encode()),
             Message::Register(m)                 => (PimType::Register, m.encode()),
@@ -94,19 +107,16 @@ impl Message {
             Message::Assert(m)                   => (PimType::Assert, m.encode()),
             Message::CandidateRpAdvertisement(m) => (PimType::CandidateRpAdvertisement, m.encode()),
         };
-
-        // Common part of header 
+        
         let mut buf = BytesMut::new();
-        buf.put_u8((2 << 4) | (pim_type as u8)); // NOTE, in the future the version might change, maybe doing it as a field or argument might be a better long term solution
 
-        // Reserved
-        buf.put_u8(0);
+        // --- Common part of header ---
+        buf.put_u8((PIM_VERSION << PIM_VERSION_SHIFT) | (pim_type as u8)); // Version and type
+        buf.put_u8(0); // Reserved
+        buf.put_u16(0); // Temporary checksum value   
+        // --- End of common part ---
 
-        // Temporary checksum value
-        buf.put_u16(0);
-
-        // Body of the message 
-        buf.extend_from_slice(&body);
+        buf.extend_from_slice(&body); // Body of the message 
 
         // Compute the checksum
         let chk: u16;
@@ -114,30 +124,38 @@ impl Message {
             PimType::Register => {chk = checksum::compute(&buf[..8])}
             _ => {chk = checksum::compute(&buf)}
         }
-        buf[2..4].copy_from_slice(&chk.to_be_bytes());
+        buf[2..4].copy_from_slice(&chk.to_be_bytes()); // Update the checksum in the buffer
+
         buf
     }
 
     pub fn decode(data: &[u8]) -> Result<Self, DecodeError> {
         // Common part is 4 bytes, anything less is defacto, wrong
-        if 4 > data.len() {
+        if PIM_HEADER_LEN > data.len() {
             return Err(DecodeError::IncompletePacket)
         }
 
-        // Version
-        let version: u8 = data[0] >> 4;
-        if 2 != version {
+        // Version check
+        let version: u8 = data[0] >> PIM_VERSION_SHIFT;
+        if PIM_VERSION != version {
             return Err(DecodeError::InvalidVersion(version))
         }
 
-        // Type
-        let raw_type: u8 = data[0] & 0x0F;
+        // Type check
+        let raw_type: u8 = data[0] & PIM_TYPE_MASK;
         let msg_type: PimType = PimType::try_from(raw_type)?;
 
+        // A Register message has a minimum length of 8 bytes
+        // This check is used to avoid panics when computing the checksum for Register messages, which only uses the first 8 bytes of the packet.
+        if msg_type == PimType::Register && data.len() < 8 {
+            return Err(DecodeError::IncompletePacket);
+        }
+
         // Reserved, should be 0
+        // NOTE: this is stricter than RFC7761 but could help discard a malformed packet more quickly.
         let reserved: u8 = data[1];
         if 0 != reserved {
-            return Err(DecodeError::InvalidReserved(reserved))
+            return Err(DecodeError::InvalidReserved(reserved as u32));
         }
     
         // Checksum 

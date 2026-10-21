@@ -1,5 +1,5 @@
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-
+/* Tests for encoded PIM unicast, group, and source addresses. */
+use  std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use holo_pim::address::{GroupAddress, SourceAddress, UnicastAddress};
 use holo_pim::errors::DecodeError;
 
@@ -215,6 +215,7 @@ fn group_ipv6_decode_rejects_short_address() {
     let data = [2, 0, 0, 0];
     assert!(matches!(GroupAddress::decode(&data), Err(DecodeError::IncompletePacket)));
 }
+
 // ---- Source address ----
 #[test]
 fn soure_ipv4_roundtrip() {

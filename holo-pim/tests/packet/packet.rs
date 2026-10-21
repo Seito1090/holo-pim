@@ -1,3 +1,4 @@
+/* Tests for the common PIM header, message type dispatch, and full-message roundtrips. */
 // TODO:
 //  - IPV6 checks as per rfc 2460
 
@@ -33,6 +34,21 @@ fn short_message_rejected(){
 } 
 
 #[test]
+fn truncated_register_message_rejected(){
+    for length in 0..8 {
+        let mut data = vec![0u8; length];
+        if length > 0 {
+            data[0] = 0x21;
+        }
+
+        assert!(
+            matches!(Message::decode(&data), Err(DecodeError::IncompletePacket)),
+            "unexpected result for truncated Register length {length}"
+        );
+    }
+}
+
+#[test]
 fn wrong_version_rejected(){
     assert!(matches!(Message::decode(&[0x11, 0x00, 0x12, 0x12]), Err(DecodeError::InvalidVersion(0x01))))
 }
@@ -44,7 +60,7 @@ fn wrong_type_rejected(){
 
 #[test]
 fn reserved_not_zeroed(){
-    assert!(matches!(Message::decode(&[0x21, 0x12, 0x4c, 0x21]), Err(DecodeError::InvalidReserved(0x12))))
+    assert!(matches!(Message::decode(&[0x20, 0x12, 0x4c, 0x21]), Err(DecodeError::InvalidReserved(0x12))))
 }
 
 /* Roundtrips */
@@ -62,11 +78,11 @@ fn register_simple_roundtrip(){
     let mut packet_bytes = BytesMut::new();
     packet_bytes.put_u16(42);
     let packet = packet_bytes.freeze();
-    let original = Message::Register(RegisterMsg { border_bit: false, null_bit: true, packet: packet });
+    let original = Message::Register(RegisterMsg { border_bit: false, null_bit: false, packet: packet });
     let encoded = original.encode();
     let decoded = Message::decode(&encoded).unwrap();
 
-    assert!(matches!(decoded, Message::Register(RegisterMsg { border_bit: false, null_bit: true, packet: _packet })));
+    assert!(matches!(decoded, Message::Register(RegisterMsg { border_bit: false, null_bit: false, packet: _packet })));
 }
 
 #[test]
@@ -74,11 +90,11 @@ fn register_padded_roundtrip(){
     let mut packet_bytes = BytesMut::new();
     packet_bytes.put_u8(42);
     let packet = packet_bytes.freeze();
-    let original = Message::Register(RegisterMsg { border_bit: false, null_bit: true, packet: packet });
+    let original = Message::Register(RegisterMsg { border_bit: false, null_bit: false, packet: packet });
     let encoded = original.encode();
     let decoded = Message::decode(&encoded).unwrap();
 
-    assert!(matches!(decoded, Message::Register(RegisterMsg { border_bit: false, null_bit: true, packet: _packet })));
+    assert!(matches!(decoded, Message::Register(RegisterMsg { border_bit: false, null_bit: false, packet: _packet })));
 }
 
 #[test]
