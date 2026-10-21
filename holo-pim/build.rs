@@ -1,1 +1,15 @@
-fn main() {}
+use holo_northbound::yang_codegen;
+use holo_yang as yang;
+
+fn main() {
+    let mut yang_ctx = yang::new_context();
+    let modules = yang::implemented_modules::PIM;
+    yang::load_modules(&mut yang_ctx, modules);
+    yang_codegen::build_yang_objects(&yang_ctx, modules, "yang_objects.rs");
+    yang_codegen::build_yang_config(
+        &yang_ctx,
+        modules,
+        Some("control-plane-protocol"),
+        "yang_config.rs",
+    );
+}

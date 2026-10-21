@@ -8,7 +8,18 @@ edition.workspace = true
 [dependencies]
 bitflags.workspace = true
 bytes.workspace = true
+phf.workspace = true
 ipnetwork.workspace = true
+holo-northbound = { path = "../holo-northbound", features = ["pim"] }
+holo-protocol = { path = "../holo-protocol" }
+holo-utils = { path = "../holo-utils" }
+holo-yang = { path = "../holo-yang", features = ["pim"] }
+yang5.workspace = true
+
+[build-dependencies]
+yang5 = { workspace = true, features = ["bundled"] }
+holo-northbound = { path = "../holo-northbound", features = ["pim"] }
+holo-yang = { path = "../holo-yang", features = ["pim"] }
 
 [lints]
 workspace = true

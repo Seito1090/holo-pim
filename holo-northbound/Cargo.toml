@@ -37,6 +37,7 @@ system = ["holo-yang/system"]
 bfd = ["holo-yang/bfd"]
 bgp = ["holo-yang/bgp"]
 igmp = ["holo-yang/igmp"]
+pim = ["holo-yang/pim"]
 isis = ["holo-yang/isis"]
 ldp = ["holo-yang/ldp"]
 ospf = ["holo-yang/ospf"]
@@ -51,6 +52,7 @@ testing = [
   "bfd",
   "bgp",
   "igmp",
+  "pim",
   "isis",
   "ldp",
   "ospf",

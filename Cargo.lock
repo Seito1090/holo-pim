@@ -1436,7 +1436,13 @@ version = "0.9.0"
 dependencies = [
  "bitflags 2.13.1",
  "bytes",
+ "holo-northbound",
+ "holo-protocol",
+ "holo-utils",
+ "holo-yang",
  "ipnetwork",
+ "phf 0.14.0",
+ "yang5",
 ]
 
 [[package]]
