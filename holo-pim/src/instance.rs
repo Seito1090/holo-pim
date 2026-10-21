@@ -1,6 +1,6 @@
-use std::collections::BTreeSet;
 use std::collections::BTreeMap;
-use std::net::Ipv4Addr;
+use std::collections::BTreeSet;
+use std::net::IpAddr;
 
 use holo_northbound::configuration::{
     Provider as ConfigProvider, YangConfigOps,
@@ -17,8 +17,8 @@ use holo_yang::ToYang;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
-use crate::northbound::configuration::InstanceCfg;
 use crate::interface::Interface;
+use crate::northbound::configuration::InstanceCfg;
 use crate::northbound::yang_gen::config::{
     self, ConfigChange, InterfaceChange, InterfaceEntryChange,
 };
@@ -38,7 +38,11 @@ pub struct Instance {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ProtocolInputMsg {
-    NetRx { src: Ipv4Addr, data: holo_utils::bytes::Bytes },
+    NetRx {
+        src: IpAddr,
+        dst: IpAddr,
+        data: holo_utils::bytes::Bytes,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -106,10 +110,29 @@ impl ProtocolInstance for Instance {
         }
     }
 
-    fn process_protocol_msg(&mut self, _msg: ProtocolInputMsg) {}
+    fn process_protocol_msg(&mut self, msg: ProtocolInputMsg) {
+        let ProtocolInputMsg::NetRx { src, dst, data } = msg;
+        let result = match (src, dst) {
+            (IpAddr::V4(_), IpAddr::V4(_)) => {
+                crate::packet::Message::decode(&data)
+            }
+            (IpAddr::V6(src), IpAddr::V6(dst)) => {
+                crate::packet::Message::decode_ipv6(&data, src, dst)
+            }
+            _ => {
+                tracing::warn!(
+                    "discarding PIM packet with mismatched address families"
+                );
+                return;
+            }
+        };
+        if let Err(error) = result {
+            tracing::debug!(%error, "discarding invalid PIM packet");
+        }
+    }
 
-    fn protocol_input_channels()
-    -> (ProtocolInputChannelsTx, ProtocolInputChannelsRx) {
+    fn protocol_input_channels(
+    ) -> (ProtocolInputChannelsTx, ProtocolInputChannelsRx) {
         let (tx, rx) = mpsc::channel(4);
         (
             ProtocolInputChannelsTx { tx },
@@ -130,7 +153,11 @@ impl Instance {
         };
         iface.flags = msg.flags;
         iface.ifindex = Some(msg.ifindex);
-        if let Err(error) = iface.update(&self.tx.protocol_input.tx) {
+        if let Err(error) = iface.update(
+            &self.tx.protocol_input.tx,
+            self.config.enabled && self.config.ipv4.enabled,
+            self.config.enabled && self.config.ipv6.enabled,
+        ) {
             tracing::error!(interface = %iface.name, %error, "failed to update PIM interface");
         }
     }
@@ -173,11 +200,8 @@ impl ConfigProvider for Instance {
                     self.interfaces.remove(&keys.name);
                 }
                 InterfaceChange::Entry(change) => {
-                    let iface = self
-                        .config
-                        .interfaces
-                        .get_mut(&keys.name)
-                        .ok_or(
+                    let iface =
+                        self.config.interfaces.get_mut(&keys.name).ok_or(
                             holo_northbound::error::ApplyError::EntryNotFound,
                         )?;
                     match change {
@@ -213,7 +237,11 @@ impl ConfigProvider for Instance {
     fn process_event(&mut self, _event: Event) {
         let input_tx = self.tx.protocol_input.tx.clone();
         for iface in self.interfaces.values_mut() {
-            if let Err(error) = iface.update(&input_tx) {
+            if let Err(error) = iface.update(
+                &input_tx,
+                self.config.enabled && self.config.ipv4.enabled,
+                self.config.enabled && self.config.ipv6.enabled,
+            ) {
                 tracing::error!(interface = %iface.name, %error, "failed to update PIM interface");
             }
         }

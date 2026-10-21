@@ -1,7 +1,8 @@
 /* This manages the encoding and decoding of PIM packets as described in section 4.9 of RFC 7761 */
-use bytes::{BufMut, BytesMut};
 use crate::checksum;
 use crate::errors::DecodeError;
+use bytes::{BufMut, BytesMut};
+use std::net::Ipv6Addr;
 
 /* Constants */
 pub const PIM_VERSION: u8 = 2;
@@ -11,12 +12,12 @@ pub const PIM_TYPE_MASK: u8 = 0x0f;
 
 // Different message types
 mod assert;
-mod hello;
-mod register;
-mod register_stop;
-mod join_prune;
 mod bootstrap;
 mod candidate_rp_advertisement;
+mod hello;
+mod join_prune;
+mod register;
+mod register_stop;
 
 pub use assert::AssertMsg;
 pub use bootstrap::BootstrapMsg;
@@ -37,7 +38,7 @@ pub enum PimType {
     Assert = 5,
     Graft = 6,
     GraftAck = 7,
-    CandidateRpAdvertisement = 8,  
+    CandidateRpAdvertisement = 8,
 }
 
 impl TryFrom<u8> for PimType {
@@ -60,7 +61,7 @@ impl TryFrom<u8> for PimType {
 }
 
 impl std::fmt::Display for PimType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let name = match self {
             PimType::Hello => "Hello",
             PimType::Register => "Register",
@@ -85,7 +86,7 @@ pub enum Message {
     Assert(AssertMsg),
     //Graft(GraftMsg),
     //GraftAck(GraftAckMsg),
-    CandidateRpAdvertisement(CandidateRpAdvertisementMsg),  
+    CandidateRpAdvertisement(CandidateRpAdvertisementMsg),
 }
 
 // PIM packet header format
@@ -97,48 +98,83 @@ pub enum Message {
 
 impl Message {
     pub fn encode(&self) -> BytesMut {
+        self.encode_with_checksum(None)
+    }
+
+    pub fn encode_ipv6(&self, src: Ipv6Addr, dst: Ipv6Addr) -> BytesMut {
+        self.encode_with_checksum(Some((src, dst)))
+    }
+
+    fn encode_with_checksum(
+        &self,
+        ipv6: Option<(Ipv6Addr, Ipv6Addr)>,
+    ) -> BytesMut {
         // Determine the type of message and encode the body
         let (pim_type, body) = match self {
-            Message::Hello(m)                    => (PimType::Hello, m.encode()),
-            Message::Register(m)                 => (PimType::Register, m.encode()),
-            Message::RegisterStop(m)             => (PimType::RegisterStop, m.encode()),
-            Message::JoinPrune(m)                => (PimType::JoinPrune, m.encode()),
-            Message::Bootstrap(m)                => (PimType::Bootstrap, m.encode()),
-            Message::Assert(m)                   => (PimType::Assert, m.encode()),
-            Message::CandidateRpAdvertisement(m) => (PimType::CandidateRpAdvertisement, m.encode()),
+            Message::Hello(m) => (PimType::Hello, m.encode()),
+            Message::Register(m) => (PimType::Register, m.encode()),
+            Message::RegisterStop(m) => (PimType::RegisterStop, m.encode()),
+            Message::JoinPrune(m) => (PimType::JoinPrune, m.encode()),
+            Message::Bootstrap(m) => (PimType::Bootstrap, m.encode()),
+            Message::Assert(m) => (PimType::Assert, m.encode()),
+            Message::CandidateRpAdvertisement(m) => {
+                (PimType::CandidateRpAdvertisement, m.encode())
+            }
         };
-        
+
         let mut buf = BytesMut::new();
 
         // --- Common part of header ---
         buf.put_u8((PIM_VERSION << PIM_VERSION_SHIFT) | (pim_type as u8)); // Version and type
         buf.put_u8(0); // Reserved
-        buf.put_u16(0); // Temporary checksum value   
-        // --- End of common part ---
+        buf.put_u16(0); // Temporary checksum value
+                        // --- End of common part ---
 
-        buf.extend_from_slice(&body); // Body of the message 
+        buf.extend_from_slice(&body); // Body of the message
 
         // Compute the checksum
         let chk: u16;
-        match pim_type {
-            PimType::Register => {chk = checksum::compute(&buf[..8])}
-            _ => {chk = checksum::compute(&buf)}
-        }
+        let checksum_len = if pim_type == PimType::Register {
+            8
+        } else {
+            buf.len()
+        };
+        chk = match ipv6 {
+            Some((src, dst)) => {
+                checksum::compute_ipv6(&buf, src, dst, checksum_len)
+            }
+            None => checksum::compute(&buf[..checksum_len]),
+        };
         buf[2..4].copy_from_slice(&chk.to_be_bytes()); // Update the checksum in the buffer
 
         buf
     }
 
     pub fn decode(data: &[u8]) -> Result<Self, DecodeError> {
+        Self::decode_with_checksum(data, None)
+    }
+
+    pub fn decode_ipv6(
+        data: &[u8],
+        src: Ipv6Addr,
+        dst: Ipv6Addr,
+    ) -> Result<Self, DecodeError> {
+        Self::decode_with_checksum(data, Some((src, dst)))
+    }
+
+    fn decode_with_checksum(
+        data: &[u8],
+        ipv6: Option<(Ipv6Addr, Ipv6Addr)>,
+    ) -> Result<Self, DecodeError> {
         // Common part is 4 bytes, anything less is defacto, wrong
         if PIM_HEADER_LEN > data.len() {
-            return Err(DecodeError::IncompletePacket)
+            return Err(DecodeError::IncompletePacket);
         }
 
         // Version check
         let version: u8 = data[0] >> PIM_VERSION_SHIFT;
         if PIM_VERSION != version {
-            return Err(DecodeError::InvalidVersion(version))
+            return Err(DecodeError::InvalidVersion(version));
         }
 
         // Type check
@@ -157,30 +193,49 @@ impl Message {
         if 0 != reserved {
             return Err(DecodeError::InvalidReserved(reserved as u32));
         }
-    
-        // Checksum 
+
+        // Checksum
         let checksum: u16;
-        match msg_type {
-            PimType::Register => {checksum = checksum::compute(&data[..8])}
-            _ => {checksum = checksum::compute(&data)}
-        }
-        
+        let checksum_len = if msg_type == PimType::Register {
+            8
+        } else {
+            data.len()
+        };
+        checksum = match ipv6 {
+            Some((src, dst)) => {
+                checksum::compute_ipv6(data, src, dst, checksum_len)
+            }
+            None => checksum::compute(&data[..checksum_len]),
+        };
+
         if checksum != 0x0000 {
-            return Err(DecodeError::InvalidChecksum)
+            return Err(DecodeError::InvalidChecksum);
         }
 
         // Actual body of the packet
         let body: &[u8] = &data[4..];
-        
+
         Ok(match msg_type {
-            PimType::Hello                    => Message::Hello(HelloMsg::decode(body)?),
-            PimType::Register                 => Message::Register(RegisterMsg::decode(body)?),
-            PimType::RegisterStop             => Message::RegisterStop(RegisterStopMsg::decode(body)?),
-            PimType::JoinPrune                => Message::JoinPrune(JoinPruneMsg::decode(body)?),
-            PimType::Bootstrap                => Message::Bootstrap(BootstrapMsg::decode(body)?),
-            PimType::Assert                   => Message::Assert(AssertMsg::decode(body)?),
-            PimType::CandidateRpAdvertisement => Message::CandidateRpAdvertisement(CandidateRpAdvertisementMsg::decode(body)?),
-            PimType::Graft|PimType::GraftAck  => return Err(DecodeError::UnsupportedMessage(msg_type)),
+            PimType::Hello => Message::Hello(HelloMsg::decode(body)?),
+            PimType::Register => Message::Register(RegisterMsg::decode(body)?),
+            PimType::RegisterStop => {
+                Message::RegisterStop(RegisterStopMsg::decode(body)?)
+            }
+            PimType::JoinPrune => {
+                Message::JoinPrune(JoinPruneMsg::decode(body)?)
+            }
+            PimType::Bootstrap => {
+                Message::Bootstrap(BootstrapMsg::decode(body)?)
+            }
+            PimType::Assert => Message::Assert(AssertMsg::decode(body)?),
+            PimType::CandidateRpAdvertisement => {
+                Message::CandidateRpAdvertisement(
+                    CandidateRpAdvertisementMsg::decode(body)?,
+                )
+            }
+            PimType::Graft | PimType::GraftAck => {
+                return Err(DecodeError::UnsupportedMessage(msg_type))
+            }
         })
     }
 }

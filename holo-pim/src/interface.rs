@@ -1,4 +1,4 @@
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
 
 use holo_utils::bytes::Bytes;
@@ -21,10 +21,11 @@ pub struct Interface {
 
 #[derive(Debug)]
 pub struct InterfaceNet {
-    pub tx: UnboundedSender<(Ipv4Addr, Bytes)>,
-    _rx_socket: Arc<AsyncFd<Socket>>,
-    _rx_task: Task<()>,
-    _tx_task: Task<()>,
+    pub tx_v4: Option<UnboundedSender<(Ipv4Addr, Bytes)>>,
+    pub tx_v6: Option<UnboundedSender<(Ipv6Addr, Bytes)>>,
+    _rx_tasks: Vec<Task<()>>,
+    _rx_sockets: Vec<Arc<AsyncFd<Socket>>>,
+    _tx_tasks: Vec<Task<()>>,
 }
 
 impl Interface {
@@ -41,11 +42,13 @@ impl Interface {
     pub fn update(
         &mut self,
         input_tx: &Sender<ProtocolInputMsg>,
+        ipv4: bool,
+        ipv6: bool,
     ) -> Result<(), std::io::Error> {
         let Some(ifindex) = self.ifindex else {
             return Ok(());
         };
-        if !self.flags.contains(InterfaceFlags::OPERATIVE) {
+        if !self.flags.contains(InterfaceFlags::OPERATIVE) || (!ipv4 && !ipv6) {
             self.stop();
             return Ok(());
         }
@@ -53,20 +56,45 @@ impl Interface {
             return Ok(());
         }
 
-        let rx_socket = Arc::new(AsyncFd::new(network::socket_rx()?)?);
-        network::join_multicast(rx_socket.get_ref(), ifindex)?;
-        let rx_task = network::net_rx(rx_socket.clone(), input_tx.clone());
-        let tx_socket = Arc::new(AsyncFd::new(network::socket_tx(&self.name)?)?);
-        let (tx, tx_rx) = mpsc::unbounded_channel();
-        let tx_task_socket = tx_socket.clone();
-        let tx_task =
-            Task::spawn(async move { network::net_tx(tx_task_socket, tx_rx).await });
-
+        let mut rx_tasks = Vec::new();
+        let mut rx_sockets = Vec::new();
+        let mut tx_tasks = Vec::new();
+        let mut tx_v4 = None;
+        let mut tx_v6 = None;
+        if ipv4 {
+            let rx = Arc::new(AsyncFd::new(network::socket_rx_v4()?)?);
+            network::join_multicast_v4(rx.get_ref(), ifindex)?;
+            rx_tasks.push(network::net_rx_v4(rx.clone(), input_tx.clone()));
+            rx_sockets.push(rx);
+            let tx_socket =
+                Arc::new(AsyncFd::new(network::socket_tx_v4(&self.name)?)?);
+            let (tx, rx) = mpsc::unbounded_channel();
+            let task_socket = tx_socket.clone();
+            tx_tasks.push(Task::spawn(async move {
+                network::net_tx_v4(task_socket, rx).await
+            }));
+            tx_v4 = Some(tx);
+        }
+        if ipv6 {
+            let rx = Arc::new(AsyncFd::new(network::socket_rx_v6()?)?);
+            network::join_multicast_v6(rx.get_ref(), ifindex)?;
+            rx_tasks.push(network::net_rx_v6(rx.clone(), input_tx.clone()));
+            rx_sockets.push(rx);
+            let tx_socket =
+                Arc::new(AsyncFd::new(network::socket_tx_v6(&self.name)?)?);
+            let (tx, rx) = mpsc::unbounded_channel();
+            let task_socket = tx_socket.clone();
+            tx_tasks.push(Task::spawn(async move {
+                network::net_tx_v6(task_socket, ifindex, rx).await
+            }));
+            tx_v6 = Some(tx);
+        }
         self.net = Some(InterfaceNet {
-            tx,
-            _rx_socket: rx_socket,
-            _rx_task: rx_task,
-            _tx_task: tx_task,
+            tx_v4,
+            tx_v6,
+            _rx_tasks: rx_tasks,
+            _rx_sockets: rx_sockets,
+            _tx_tasks: tx_tasks,
         });
         self.active = true;
         Ok(())

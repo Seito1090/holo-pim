@@ -33,5 +33,5 @@ workspace = true
 
 [features]
 default = []
-testing = []
+testing = ["holo-protocol/testing", "holo-utils/testing"]
 deterministic = []
