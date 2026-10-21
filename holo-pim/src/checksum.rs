@@ -38,6 +38,8 @@
        checksum = ~sum;
    }
 */
+use std::net::Ipv6Addr;
+
 pub fn compute(data: &[u8]) -> u16 {
     let mut accumulator: u32 = 0;
     let mut reste = data;
@@ -60,4 +62,25 @@ pub fn compute(data: &[u8]) -> u16 {
         accumulator = (accumulator & 0xFFFF) + (accumulator >> 16);
     }
     !(accumulator as u16)
+}
+
+/*
+This function extends the checksum computation to include the pseudo-header for IPv6 packets as per RFC 8200 section 8.1.
+*/
+pub fn compute_ipv6(
+    data: &[u8],
+    src: Ipv6Addr,
+    dst: Ipv6Addr,
+    upper_layer_len: usize,
+) -> u16 {
+    // Create the pseudo-header for the IPv6 packet
+    let mut pseudo_header = Vec::with_capacity(40 + data.len());
+
+    pseudo_header.extend_from_slice(&src.octets()); // Source Address
+    pseudo_header.extend_from_slice(&dst.octets()); // Destination Address
+    pseudo_header.extend_from_slice(&(upper_layer_len as u32).to_be_bytes()); // Upper-Layer Packet Length
+    pseudo_header.extend_from_slice(&[0, 0, 0, 103]); // Next Header field for PIM is 103
+    pseudo_header.extend_from_slice(&data[..upper_layer_len]); // Upper-Layer Packet Data
+    
+    compute(&pseudo_header)
 }
