@@ -9,6 +9,8 @@ pub mod debug;
 pub mod errors;
 pub mod event;
 pub mod instance;
+pub mod interface;
+pub mod network;
 pub mod northbound;
 pub mod packet;
 pub mod state;

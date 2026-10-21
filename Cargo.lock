@@ -1437,14 +1437,19 @@ version = "0.9.0"
 dependencies = [
  "bitflags 2.13.1",
  "bytes",
+ "const-addrs",
  "holo-northbound",
  "holo-protocol",
  "holo-utils",
  "holo-yang",
  "ipnetwork",
+ "libc",
+ "nix 0.31.3",
  "phf 0.14.0",
  "serde",
+ "socket2 0.6.5",
  "tokio",
+ "tracing",
  "yang5",
 ]
 

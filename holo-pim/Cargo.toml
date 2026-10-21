@@ -10,8 +10,13 @@ bitflags.workspace = true
 bytes.workspace = true
 phf.workspace = true
 ipnetwork.workspace = true
+const-addrs.workspace = true
+libc.workspace = true
+nix.workspace = true
+socket2.workspace = true
 serde.workspace = true
 tokio.workspace = true
+tracing.workspace = true
 holo-northbound = { path = "../holo-northbound", features = ["pim"] }
 holo-protocol = { path = "../holo-protocol" }
 holo-utils = { path = "../holo-utils" }

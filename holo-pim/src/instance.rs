@@ -1,4 +1,6 @@
 use std::collections::BTreeSet;
+use std::collections::BTreeMap;
+use std::net::Ipv4Addr;
 
 use holo_northbound::configuration::{
     Provider as ConfigProvider, YangConfigOps,
@@ -10,11 +12,13 @@ use holo_protocol::{
 };
 use holo_utils::ibus::IbusMsg;
 use holo_utils::protocol::Protocol;
+use holo_utils::southbound::InterfaceUpdateMsg;
 use holo_yang::ToYang;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::northbound::configuration::InstanceCfg;
+use crate::interface::Interface;
 use crate::northbound::yang_gen::config::{
     self, ConfigChange, InterfaceChange, InterfaceEntryChange,
 };
@@ -27,19 +31,22 @@ pub struct Instance {
     pub name: String,
     pub config: InstanceCfg,
     pub state: Option<InstanceState>,
+    pub interfaces: BTreeMap<String, Interface>,
     pub tx: InstanceChannelsTx<Instance>,
     pub shared: InstanceShared,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum ProtocolInputMsg {}
+pub enum ProtocolInputMsg {
+    NetRx { src: Ipv4Addr, data: holo_utils::bytes::Bytes },
+}
 
 #[derive(Debug, Serialize)]
 pub enum ProtocolOutputMsg {}
 
 #[derive(Clone, Debug)]
 pub struct ProtocolInputChannelsTx {
-    _tx: Sender<ProtocolInputMsg>,
+    pub tx: Sender<ProtocolInputMsg>,
 }
 
 #[derive(Debug)]
@@ -75,6 +82,7 @@ impl ProtocolInstance for Instance {
             name,
             config: Default::default(),
             state: None,
+            interfaces: BTreeMap::new(),
             tx,
             shared,
         }
@@ -92,7 +100,11 @@ impl ProtocolInstance for Instance {
         self.state = None;
     }
 
-    fn process_ibus_msg(&mut self, _msg: IbusMsg) {}
+    fn process_ibus_msg(&mut self, msg: IbusMsg) {
+        if let IbusMsg::InterfaceUpd(msg) = msg {
+            self.process_interface_update(msg);
+        }
+    }
 
     fn process_protocol_msg(&mut self, _msg: ProtocolInputMsg) {}
 
@@ -100,7 +112,7 @@ impl ProtocolInstance for Instance {
     -> (ProtocolInputChannelsTx, ProtocolInputChannelsRx) {
         let (tx, rx) = mpsc::channel(4);
         (
-            ProtocolInputChannelsTx { _tx: tx },
+            ProtocolInputChannelsTx { tx },
             ProtocolInputChannelsRx { _rx: rx },
         )
     }
@@ -108,6 +120,19 @@ impl ProtocolInstance for Instance {
     #[cfg(feature = "testing")]
     fn test_dir() -> String {
         format!("{}/tests", env!("CARGO_MANIFEST_DIR"))
+    }
+}
+
+impl Instance {
+    fn process_interface_update(&mut self, msg: InterfaceUpdateMsg) {
+        let Some(iface) = self.interfaces.get_mut(&msg.ifname) else {
+            return;
+        };
+        iface.flags = msg.flags;
+        iface.ifindex = Some(msg.ifindex);
+        if let Err(error) = iface.update(&self.tx.protocol_input.tx) {
+            tracing::error!(interface = %iface.name, %error, "failed to update PIM interface");
+        }
     }
 }
 
@@ -135,12 +160,17 @@ impl ConfigProvider for Instance {
             }
             ConfigChange::Interface(keys, change) => match change {
                 InterfaceChange::Create => {
+                    let ifname = keys.name.clone();
                     self.config
                         .interfaces
-                        .insert(keys.name, Default::default());
+                        .insert(ifname.clone(), Default::default());
+                    self.interfaces
+                        .insert(ifname.clone(), Interface::new(ifname.clone()));
+                    self.tx.ibus.interface_sub(Some(ifname), None);
                 }
                 InterfaceChange::Delete => {
                     self.config.interfaces.remove(&keys.name);
+                    self.interfaces.remove(&keys.name);
                 }
                 InterfaceChange::Entry(change) => {
                     let iface = self
@@ -180,7 +210,14 @@ impl ConfigProvider for Instance {
         Ok(())
     }
 
-    fn process_event(&mut self, _event: Event) {}
+    fn process_event(&mut self, _event: Event) {
+        let input_tx = self.tx.protocol_input.tx.clone();
+        for iface in self.interfaces.values_mut() {
+            if let Err(error) = iface.update(&input_tx) {
+                tracing::error!(interface = %iface.name, %error, "failed to update PIM interface");
+            }
+        }
+    }
 }
 
 impl rpc::Provider for Instance {
