@@ -81,7 +81,7 @@ async fn main() {
         Protocol::RIPNG => {
             replay::<holo_rip::instance::Instance<Ripng>>(filename).await
         }
-        Protocol::DIRECT | Protocol::STATIC => {
+        Protocol::DIRECT | Protocol::PIM | Protocol::STATIC => {
             eprintln!("Unsupported protocol type");
             std::process::exit(1);
         }

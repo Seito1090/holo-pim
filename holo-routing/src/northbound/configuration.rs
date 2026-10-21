@@ -759,6 +759,10 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
             // This protocol type can not be configured.
             unreachable!()
         }
+        Protocol::PIM => {
+            // PIM instance support is not available yet.
+            return;
+        }
         #[cfg(feature = "igmp")]
         Protocol::IGMP => {
             use holo_igmp::instance::Instance;
