@@ -63,6 +63,7 @@ async fn main() {
         Protocol::BFD => replay::<holo_bfd::master::Master>(filename).await,
         Protocol::BGP => replay::<holo_bgp::instance::Instance>(filename).await,
         Protocol::LDP => replay::<holo_ldp::instance::Instance>(filename).await,
+        Protocol::PIM => replay::<holo_pim::instance::Instance>(filename).await,
         Protocol::IGMP => {
             replay::<holo_igmp::instance::Instance>(filename).await
         }
@@ -81,7 +82,7 @@ async fn main() {
         Protocol::RIPNG => {
             replay::<holo_rip::instance::Instance<Ripng>>(filename).await
         }
-        Protocol::DIRECT | Protocol::PIM | Protocol::STATIC => {
+        Protocol::DIRECT | Protocol::STATIC => {
             eprintln!("Unsupported protocol type");
             std::process::exit(1);
         }

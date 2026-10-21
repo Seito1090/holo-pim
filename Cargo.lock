@@ -1192,6 +1192,7 @@ dependencies = [
  "holo-ldp",
  "holo-northbound",
  "holo-ospf",
+ "holo-pim",
  "holo-policy",
  "holo-protocol",
  "holo-rip",
@@ -1442,6 +1443,8 @@ dependencies = [
  "holo-yang",
  "ipnetwork",
  "phf 0.14.0",
+ "serde",
+ "tokio",
  "yang5",
 ]
 
@@ -1490,6 +1493,7 @@ dependencies = [
  "holo-isis",
  "holo-ldp",
  "holo-ospf",
+ "holo-pim",
  "holo-protocol",
  "holo-rip",
  "holo-utils",
@@ -1546,6 +1550,7 @@ dependencies = [
  "holo-ldp",
  "holo-northbound",
  "holo-ospf",
+ "holo-pim",
  "holo-protocol",
  "holo-rip",
  "holo-utils",

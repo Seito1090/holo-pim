@@ -14,6 +14,7 @@ holo-bfd = { path = "../../holo-bfd", features = ["testing"] }
 holo-bgp = { path = "../../holo-bgp", features = ["testing"] }
 holo-ldp = { path = "../../holo-ldp", features = ["testing"] }
 holo-igmp = { path = "../../holo-igmp", features = ["testing"] }
+holo-pim = { path = "../../holo-pim", features = ["testing"] }
 holo-isis = { path = "../../holo-isis", features = ["testing"] }
 holo-rip = { path = "../../holo-rip", features = ["testing"] }
 holo-ospf = { path = "../../holo-ospf", features = ["testing"] }

@@ -37,6 +37,7 @@ holo-interface = { path = "../holo-interface", optional = true  }
 holo-bfd = { path = "../holo-bfd", optional = true }
 holo-bgp = { path = "../holo-bgp", optional = true }
 holo-igmp = { path = "../holo-igmp", optional = true }
+holo-pim = { path = "../holo-pim", optional = true }
 holo-isis = { path = "../holo-isis", optional = true }
 holo-keychain = { path = "../holo-keychain", optional = true }
 holo-ldp = { path = "../holo-ldp", optional = true }
@@ -76,6 +77,7 @@ base = [
 protocols = [
   "bfd",
   "bgp",
+  "pim",
   # IGMP support is under development and currently non-functional.
   #"igmp",
   "isis",
@@ -96,6 +98,7 @@ system = ["dep:holo-system"]
 bfd = ["dep:holo-bfd", "holo-routing/bfd"]
 bgp = ["dep:holo-bgp", "holo-routing/bgp"]
 igmp = ["dep:holo-igmp", "holo-routing/igmp"]
+pim = ["dep:holo-pim", "holo-routing/pim"]
 isis = ["dep:holo-isis", "holo-routing/isis"]
 ldp = ["dep:holo-ldp", "holo-routing/ldp"]
 ospf = ["dep:holo-ospf", "holo-routing/ospf"]

@@ -90,10 +90,7 @@ fn prepare_master(master: &mut Master, change: &ConfigChange, resource: &mut Opt
                 return Ok(());
             }
 
-            event_queue.insert(Event::InstanceStart {
-                protocol,
-                name: keys.name.clone(),
-            });
+            event_queue.insert(Event::InstanceStart { protocol, name: keys.name.clone() });
         }
         ConfigChange::SegmentRoutingSrMplsSrgb(keys, SegmentRoutingSrMplsSrgbChange::Create) => {
             let range = LabelRange::new(keys.lower_bound, keys.upper_bound);
@@ -468,10 +465,7 @@ fn apply_bier_encapsulation(
 fn apply_bier_bift(master: &mut Master, bfr_id: BfrId, change: BierBiftChange, event_queue: &mut BTreeSet<Event>) -> Result<(), ApplyError> {
     match change {
         BierBiftChange::Create => {
-            let bift_cfg = BierBiftCfg {
-                bfr_id,
-                birt: Default::default(),
-            };
+            let bift_cfg = BierBiftCfg { bfr_id, birt: Default::default() };
             master.bier_config.bift_cfg.insert(bfr_id, bift_cfg);
             event_queue.insert(Event::BierCfgUpdate);
             event_queue.insert(Event::BierCfgBiftUpdate(bfr_id));
@@ -493,10 +487,7 @@ fn apply_bier_bift(master: &mut Master, bfr_id: BfrId, change: BierBiftChange, e
 fn apply_bier_birt(bift_cfg: &mut BierBiftCfg, bsl: Bsl, change: BierBiftBirtBitstringlengthChange, event_queue: &mut BTreeSet<Event>) -> Result<(), ApplyError> {
     match change {
         BierBiftBirtBitstringlengthChange::Create => {
-            let bift = BierBift {
-                bsl,
-                nbr: Default::default(),
-            };
+            let bift = BierBift { bsl, nbr: Default::default() };
             bift_cfg.birt.insert(bsl, bift);
             event_queue.insert(Event::BierCfgUpdate);
             // FIXME: Create custom event?
@@ -639,10 +630,7 @@ fn apply_srlb(master: &mut Master, range: LabelRange, change: SegmentRoutingSrMp
 
 fn process_event(master: &mut Master, event: Event) {
     match event {
-        Event::InstanceStart {
-            protocol,
-            name,
-        } => {
+        Event::InstanceStart { protocol, name } => {
             instance_start(master, protocol, name);
         }
         Event::StaticRouteInstall(prefix) => {
@@ -682,10 +670,7 @@ fn process_event(master: &mut Master, event: Event) {
         }
         Event::StaticRouteUninstall(prefix) => {
             // Prepare message.
-            let msg = RouteKeyMsg {
-                protocol: Protocol::STATIC,
-                prefix,
-            };
+            let msg = RouteKeyMsg { protocol: Protocol::STATIC, prefix };
 
             // Send message.
             master.ibus_tx.route_ip_del(msg);
@@ -759,9 +744,11 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
             // This protocol type can not be configured.
             unreachable!()
         }
+        #[cfg(feature = "pim")]
         Protocol::PIM => {
-            // PIM instance support is not available yet.
-            return;
+            use holo_pim::instance::Instance;
+
+            spawn_protocol_task::<Instance>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), master.shared.clone())
         }
         #[cfg(feature = "igmp")]
         Protocol::IGMP => {
@@ -826,14 +813,8 @@ fn static_nexthop_get(interfaces: &Interfaces, nexthop: &StaticRouteNexthop) -> 
     let iface = interfaces.get_by_name(ifname)?;
     let ifindex = iface.ifindex;
     let nexthop = match nexthop.addr {
-        Some(addr) => Nexthop::Address {
-            ifindex,
-            addr,
-            labels: Default::default(),
-        },
-        None => Nexthop::Interface {
-            ifindex,
-        },
+        Some(addr) => Nexthop::Address { ifindex, addr, labels: Default::default() },
+        None => Nexthop::Interface { ifindex },
     };
     Some(nexthop)
 }
