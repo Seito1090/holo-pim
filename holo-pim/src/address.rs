@@ -2,7 +2,12 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use bytes::{BufMut, BytesMut};
 use crate::errors::DecodeError;
 
-// Encoded Unicast Address
+// --- Encoded Unicast Address ---
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// | Addr Family   | Encoding Type | Unicast Address
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+...
 mod addr_family {
     pub const IPV4: u8 = 1;
     pub const IPV6: u8 = 2;
@@ -42,7 +47,14 @@ impl UnicastAddress {
     }
 }
 
-// Encoded Group Address
+// --- Encoded Group Address ---
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// | Addr Family   | Encoding Type |B| Reserved |Z| Mask Len |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// | Group multicast Address
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+...
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GroupAddress {
     pub addr: IpAddr,
@@ -64,8 +76,8 @@ impl GroupAddress {
             }
             IpAddr::V6(v6) => {
                 buf.put_u8(addr_family::IPV6);
-                buf.put_u8(0);
-                buf.put_u8(((self.b_bit as u8) << 7) | (self.z_bit as u8));
+                buf.put_u8(0); // encoding type
+                buf.put_u8(((self.b_bit as u8) << 7) | (self.z_bit as u8)); // b/z bits and reserved
                 buf.put_u8(self.mask_byte);
                 buf.extend_from_slice(&v6.octets());
             }
@@ -75,14 +87,14 @@ impl GroupAddress {
 
     pub fn decode(data: &[u8]) -> Result<(Self, usize), DecodeError>{
         let family = *data.first().ok_or(DecodeError::IncompletePacket)?;
+
         let encoding = *data.get(1).ok_or(DecodeError::IncompletePacket)?;
         if 0 != encoding {
             return Err(DecodeError::InvalidEncoding(encoding));
         }
+
         let reserved = *data.get(2).ok_or(DecodeError::IncompletePacket)?;
-        if (reserved & 0x7E) != 0x00{
-            return Err(DecodeError::InvalidReserved(reserved as u32));
-        }
+
         let b_bit: bool = (reserved & 0x80) != 0x00;
         let z_bit: bool = (reserved & 0x01) != 0x00; 
         let mask_byte: u8 = *data.get(3).ok_or(DecodeError::IncompletePacket)?;
@@ -91,7 +103,14 @@ impl GroupAddress {
     }
 }
 
-// Encoded Source Address
+// --- Encoded Source Address ---
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// | Addr Family   | Encoding Type | Rsrvd   |S|W|R| Mask Len      |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// | Source Address
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+...
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SourceAddress {
     pub addr: IpAddr,
@@ -108,14 +127,14 @@ impl SourceAddress {
             IpAddr::V4(v4) => {
                 buf.put_u8(addr_family::IPV4); 
                 buf.put_u8(0); // encoding type is set to 0 as per rfc 7761
-                buf.put_u8(((self.s_bit as u8) << 2)| ((self.w_bit as u8) << 1) | (self.r_bit as u8));
+                buf.put_u8(((self.s_bit as u8) << 2)| ((self.w_bit as u8) << 1) | (self.r_bit as u8)); // s/w/r bits and reserved
                 buf.put_u8(self.mask_byte);
                 buf.extend_from_slice(&v4.octets());
             }
             IpAddr::V6(v6) => {
                 buf.put_u8(addr_family::IPV6);
-                buf.put_u8(0);
-                buf.put_u8(((self.s_bit as u8) << 2) | ((self.w_bit as u8) << 1) | (self.r_bit as u8));
+                buf.put_u8(0); // encoding type
+                buf.put_u8(((self.s_bit as u8) << 2) | ((self.w_bit as u8) << 1) | (self.r_bit as u8)); // s/w/r bits and reserved
                 buf.put_u8(self.mask_byte);
                 buf.extend_from_slice(&v6.octets());
             }
@@ -125,14 +144,14 @@ impl SourceAddress {
 
     pub fn decode(data: &[u8]) -> Result<(Self, usize), DecodeError>{
         let family = *data.first().ok_or(DecodeError::IncompletePacket)?;
+
         let encoding = *data.get(1).ok_or(DecodeError::IncompletePacket)?;
         if 0 != encoding {
             return Err(DecodeError::InvalidEncoding(encoding));
         }
+
         let reserved = *data.get(2).ok_or(DecodeError::IncompletePacket)?; 
-        if (reserved & 0xF8) != 0x00{
-            return Err(DecodeError::InvalidReserved(reserved as u32));
-        }
+
         let s_bit: bool = (reserved & 0x04) != 0x00;
         let w_bit: bool = (reserved & 0x02) != 0x00;
         let r_bit: bool = (reserved & 0x01) != 0x00;
