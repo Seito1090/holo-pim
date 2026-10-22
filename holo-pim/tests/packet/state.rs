@@ -10,18 +10,18 @@ fn sample_ipv4(n: u8) -> IpAddr {
 
 #[test]
 fn ifindex_usable_as_hashmap_key() {
-    let mut map: HashMap<IfIndex, u32> = HashMap::new();
-    map.insert(IfIndex(1), 100);
-    map.insert(IfIndex(2), 200);
-    assert_eq!(map.get(&IfIndex(1)), Some(&100));
+    let mut map: HashMap<InterfaceIndex, u32> = HashMap::new();
+    map.insert(InterfaceIndex(1), 100);
+    map.insert(InterfaceIndex(2), 200);
+    assert_eq!(map.get(&InterfaceIndex(1)), Some(&100));
     assert_eq!(map.len(), 2);
 }
 
 #[test]
 fn ifindex_equality_and_ordering() {
-    assert_eq!(IfIndex(1), IfIndex(1));
-    assert_ne!(IfIndex(1), IfIndex(2));
-    assert!(IfIndex(1) < IfIndex(2));
+    assert_eq!(InterfaceIndex(1), InterfaceIndex(1));
+    assert_ne!(InterfaceIndex(1), InterfaceIndex(2));
+    assert!(InterfaceIndex(1) < InterfaceIndex(2));
 }
 
 // ---- GeneralState ----
@@ -62,9 +62,9 @@ fn sample_interface_state() -> InterfaceState {
 #[test]
 fn star_g_state_constructs_and_tracks_one_interface() {
     let mut interface_state = HashMap::new();
-    interface_state.insert(IfIndex(1), sample_interface_state());
+    interface_state.insert(InterfaceIndex(1), sample_interface_state());
 
-    let state = StarGState {
+    let state = StarGroupState {
         intereface_state: interface_state,
         upstream_join_prune_state: UpstreamJoinPruneState::Joined,
         upstream_join_prune_timer: 60,
@@ -74,14 +74,14 @@ fn star_g_state_constructs_and_tracks_one_interface() {
 
     assert_eq!(state.intereface_state.len(), 1);
     assert_eq!(
-        state.intereface_state.get(&IfIndex(1)).unwrap().local_membership,
+        state.intereface_state.get(&InterfaceIndex(1)).unwrap().local_membership,
         LocalMembershipState::Include
     );
 }
 
 #[test]
 fn star_g_state_no_interfaces_is_valid() {
-    let state = StarGState {
+    let state = StarGroupState {
         intereface_state: HashMap::new(),
         upstream_join_prune_state: UpstreamJoinPruneState::NotJoined,
         upstream_join_prune_timer: 0,
@@ -95,7 +95,7 @@ fn star_g_state_no_interfaces_is_valid() {
 
 #[test]
 fn sg_state_constructs_without_register_state_when_not_dr() {
-    let state = SgState {
+    let state = SourceGroupState {
         intereface_state: HashMap::new(),
         upstream_join_prune_state: UpstreamJoinPruneState::NotJoined,
         upstream_join_prune_timer: 0,
@@ -109,7 +109,7 @@ fn sg_state_constructs_without_register_state_when_not_dr() {
 
 #[test]
 fn sg_state_constructs_with_register_state_when_dr() {
-    let state = SgState {
+    let state = SourceGroupState {
         intereface_state: HashMap::new(),
         upstream_join_prune_state: UpstreamJoinPruneState::Joined,
         upstream_join_prune_timer: 60,
@@ -125,13 +125,13 @@ fn sg_state_constructs_with_register_state_when_dr() {
     assert!(state.spt_bit);
 }
 
-// ---- SgRptState ----
+// ---- SourceGroupRptState ----
 
 #[test]
 fn sg_rpt_state_tracks_per_interface_prune_state() {
     let mut intereface_state = HashMap::new();
     intereface_state.insert(
-        IfIndex(1),
+        InterfaceIndex(1),
         RptInterfaceState { 
             local_membership: LocalSgRptState::Exclude,
             pim_join_prune_rpt: JoinPruneRptState {
@@ -142,7 +142,7 @@ fn sg_rpt_state_tracks_per_interface_prune_state() {
         },
     );
 
-    let state = SgRptState {
+    let state = SourceGroupRptState {
         intereface_state,
         upstream_state: UpstreamState {
             state: UpstreamFSMState::NotPruned,

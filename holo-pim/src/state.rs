@@ -16,7 +16,7 @@ pub use register::{RegisterFSMState, RegisterState};
 // NOTE, different timers to be checked in their respective sections, 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct IfIndex(pub u32);
+pub struct InterfaceIndex(pub u32);
 
 pub struct GeneralState {
     // RFC 7761 section 4.1.1
@@ -29,10 +29,10 @@ pub struct GeneralState {
     pub dr_priority: u32,
 }
 
-pub struct StarGState {
+pub struct StarGroupState {
     // RFC 7761 section 4.1.2
     // Interface specific
-    pub intereface_state: HashMap<IfIndex, InterfaceState>,
+    pub intereface_state: HashMap<InterfaceIndex, InterfaceState>,
 
     // Not interface specific
     pub upstream_join_prune_state: UpstreamJoinPruneState, 
@@ -41,28 +41,28 @@ pub struct StarGState {
     pub last_rpf_neighbor_to_rp_used: IpAddr,
 }
 
-pub struct SgState {
+pub struct SourceGroupState {
     // RFC 7761 section 4.1.3 
 
     // Interface specific
-    pub intereface_state: HashMap<IfIndex, InterfaceState>,
+    pub intereface_state: HashMap<InterfaceIndex, InterfaceState>,
 
     // Not interface specific
     pub upstream_join_prune_state: UpstreamJoinPruneState, 
     pub upstream_join_prune_timer: u16,
     pub last_source_used: IpAddr,
     pub spt_bit: bool,
-    pub kat: u16,
+    pub kat: u16, // SG Keep Alive Timer
 
     // Additional (S,G) state at the DR
     pub register_state: Option<RegisterState>,
 }
 
-pub struct SgRptState {
+pub struct SourceGroupRptState {
     // RFC 7761 section 4.1.4
 
     // Interface specific 
-    pub intereface_state: HashMap<IfIndex,RptInterfaceState>,
+    pub intereface_state: HashMap<InterfaceIndex,RptInterfaceState>,
 
     // Not interface specific
     pub upstream_state: UpstreamState, 
