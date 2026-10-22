@@ -150,13 +150,6 @@ impl Message {
         if msg_type == PimType::Register && data.len() < 8 {
             return Err(DecodeError::IncompletePacket);
         }
-
-        // Reserved, should be 0
-        // NOTE: this is stricter than RFC7761 but could help discard a malformed packet more quickly.
-        let reserved: u8 = data[1];
-        if 0 != reserved {
-            return Err(DecodeError::InvalidReserved(reserved as u32));
-        }
     
         // Checksum 
         let checksum: u16;

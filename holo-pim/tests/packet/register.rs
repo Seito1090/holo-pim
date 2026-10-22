@@ -32,27 +32,6 @@ fn register_decode_rejects_reserved_bits() {
     ));
 }
 
-/* The following two tests are commented out because the current implementation of RegisterMsg::decode does not enforce the rule that if the null bit is set, the packet must be empty, and if the null bit is not set, the packet must not be empty. If we decide to enforce this rule in the future, these tests can be uncommented. 
-#[test]
-fn register_with_payload_requires_null_bit_to_be_clear() {
-    let data = [0x40, 0x00, 0x00, 0x00, 0xAA];
-
-    assert!(matches!(
-        RegisterMsg::decode(&data),
-        Err(DecodeError::InvalidRegisterPayload)
-    ));
-}
-
-#[test]
-fn register_without_payload_requires_null_bit_to_be_set() {
-    let data = [0x00, 0x00, 0x00, 0x00];
-
-    assert!(matches!(
-        RegisterMsg::decode(&data),
-        Err(DecodeError::InvalidRegisterPayload)
-    ));
-} */
-
 #[test]
 fn null_register_has_no_payload() {
     let data = [0x40, 0x00, 0x00, 0x00];
