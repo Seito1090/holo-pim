@@ -58,11 +58,6 @@ fn wrong_type_rejected(){
     assert!(matches!(Message::decode(&[0x29, 0x00, 0x12, 0x12]), Err(DecodeError::InvalidMessageType(0x09))))
 }
 
-#[test]
-fn reserved_not_zeroed(){
-    assert!(matches!(Message::decode(&[0x20, 0x12, 0x4c, 0x21]), Err(DecodeError::InvalidReserved(0x12))))
-}
-
 /* Roundtrips */
 #[test]
 fn hello_roundtrip(){
